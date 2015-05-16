@@ -71,7 +71,7 @@ def genGroupConstraints(group, nBits, id=''):
 	
 	sector = np.reshape(group, (n_sqr) )
 	for i in range(n_sqr):
-		for j in range(i, n_sqr):
+		for j in range(i+1, n_sqr):
 			if (i//n == j//n) or (i%n == j%n):
 				continue
 			else:
@@ -84,16 +84,22 @@ def genReducedSectorContraints(sector, nBits, id=''):
 	'''
 	n_sqr = len(sector)
 	n = n_sqr**0.5
-	cnf = genSectorConstraints(sector, nBits, id);
 	startBit = nBits // 2
 	
+	cnf = []
+	
+	# general column constraints
 	for i in range(n_sqr):
 		for j in range(i+1, n_sqr):
-			if i // n == j // n:
+			if i // n == j // n: # special case these can't even be in the same group
 				cnf = cnf + genNotEqualCNF(sector[i] + id, sector[j] + id, nBits, startBit)
+			else:
+				cnf = cnf + genNotEqualCNF(sector[i] + id, sector[j] + id, nBits)
 	return cnf
 	
 def countBits(n, even=False):
+	''' Returns the number of bits necessary to encode the value n
+	'''
 	nBits = int (math.ceil( math.log ( n ) / math.log(2) ))
 	
 	if even  and (nBits & 1) == 1:
@@ -120,7 +126,7 @@ def satokuCNF(n):
 	
 	#generate column constraints ( don't forget about the group simplification)
 	for val in range(n_sqr):
-		cnf = cnf + genReducedSectorContraints(cells[:, val], nBits, id = 'C')
+		cnf = cnf + genReducedSectorContraints(cells[:, val], nBits)
 		
 	return cnf
 	
@@ -166,7 +172,7 @@ def basicCNF(n):
 	
 def compare():
 
-	for n in range(2, 11):
+	for n in range(2, 6):
 		start = time.clock()
 		satoku = satokuCNF(n)
 		satTime = time.clock() - start
@@ -174,6 +180,8 @@ def compare():
 		start = time.clock()
 		basic = basicCNF(n)
 		basTime = time.clock() - start
+		print ''
+		print ''
 		print '	n: ', n, '	#bits basic:  ', countBits(n**2), '	#bits satdoku: ', countBits(n**2, True)
 		print '	satoku CNF clauses:', len(satoku), '	time:', satTime
 		print '	basic  CNF clauses:', len(basic), '	time:', basTime
@@ -182,23 +190,33 @@ def compare():
 		start = time.clock()
 		sat.solve(satoku)
 		sat.solve(satoku)
-		sat.solve(satoku)
+		satSol = sat.solve(satoku)
 		
 		satTime = (time.clock() - start) / 3
 		
 		start = time.clock()
 		sat.solve(basic)
 		sat.solve(basic)
-		sat.solve(basic)
+		basSol = sat.solve(basic)
 		basTime = (time.clock() - start) / 3
 		
+		if type(satSol) == type([]):
+			satSol = True
+		else:
+			satSol = False
+			
+		if type(basSol) == type([]):
+			basSol = True
+		else:
+			basSol = False
+
 		print ''
-		print '	satoku solution time:	', satTime
-		print '	basic  solution time:	', basTime
+		print '	satoku solution exists:	', satSol, '	time:', satTime
+		print '	basic  solution exists:	', basSol, '	tiem:', basTime
 		
 def runBasic():
 
-	for n in range(2, 11):
+	for n in range(2, 5):
 		
 		start = time.clock()
 		basic = basicCNF(n)
@@ -217,10 +235,16 @@ def runBasic():
 		print ''
 		
 def genPair(base):
+	''' Creates a positive / negative pair for the base varialbe
+	'''
 	return [ [base], ['-'+base] ]
 	
 def genAllPairs(nBits, base, startBit = 0):
-	pairs = genPair(base + 'B0')
+	''' Creates all possible combinations for nbits, these constitute the null value CNF clauses
+		pairs is a list of lists of strings
+		[ [ 'baseB0', 'baseB1' ], [ '-baseB0', 'baseB1' ], [ 'baseB0', '-baseB1' ], [ '-baseB0', '-baseB1' ] ]
+	'''
+	pairs = genPair(base + 'B'+ str(startBit))
 	
 	for i in range(startBit+1, nBits):
 		p1 = []
@@ -234,6 +258,9 @@ def genAllPairs(nBits, base, startBit = 0):
 	return pairs
 	
 def genNullValuePrototypeCNF(n):
+	''' Generates the null value prototypes
+		These are the values v > n that occur when encoding n to binary
+	'''
 	nBits = countBits(n)
 	nullValueCount = (2**nBits) - n
 	if nullValueCount == 0:
@@ -242,6 +269,8 @@ def genNullValuePrototypeCNF(n):
 		return genAllPairs(nBits, '')[-nullValueCount:]
 	
 def convertToBase(prototype, base):
+	''' Changes a prototype to pycosat cnf clauses using base + prototype value
+	'''
 	out = []
 	for i, e in enumerate(prototype):
 		out.append([])
@@ -254,6 +283,8 @@ def convertToBase(prototype, base):
 	return out
 
 def hasZero(cnf):
+	''' checks if a cnf expression contains the invalid value 0
+	'''
 	for clause in cnf:
 		for v in clause:
 			if v == 0:
@@ -261,7 +292,8 @@ def hasZero(cnf):
 	return False
 				
 if __name__ == '__main__':
-	runBasic()
+	compare()
+	
 	
 	
 	
