@@ -128,6 +128,19 @@ def satokuCNF(n):
 	for val in range(n_sqr):
 		cnf = cnf + genReducedSectorContraints(cells[:, val], nBits)
 		
+	#generate null value constraints
+	prototypeL = genNullValuePrototypeCNF(n)
+	
+	if prototypeL == None:
+		return cnf
+
+	prototypeH = shiftPrototype(prototypeL)
+	
+	for row in cells:
+		for cell in row:
+			cnf = cnf + convertToBase(prototypeL, cell)
+			cnf = cnf + convertToBase(prototypeH, cell)
+
 	return cnf
 	
 def basicCNF(n):
@@ -166,73 +179,55 @@ def basicCNF(n):
 
 	for row in cells:
 		for cell in row:
-			convertToBase(prototype, cell)
 			cnf = cnf + convertToBase(prototype, cell)
 	return cnf
 	
-def compare():
+def compare(stop):
 
-	for n in range(2, 6):
-		start = time.clock()
-		satoku = satokuCNF(n)
-		satTime = time.clock() - start
-		
-		start = time.clock()
-		basic = basicCNF(n)
-		basTime = time.clock() - start
+	for n in range(2, stop+1):
+		print 'n:', n
+		runBasic(n)
+		runSatoku(n)
 		print ''
-		print ''
-		print '	n: ', n, '	#bits basic:  ', countBits(n**2), '	#bits satdoku: ', countBits(n**2, True)
-		print '	satoku CNF clauses:', len(satoku), '	time:', satTime
-		print '	basic  CNF clauses:', len(basic), '	time:', basTime
 		
+def runBasic(n):
 		
-		start = time.clock()
-		sat.solve(satoku)
-		sat.solve(satoku)
-		satSol = sat.solve(satoku)
+	start = time.clock()
+	basic = basicCNF(n)
+	cTime = time.clock() - start
+	
+	start = time.clock()
+	sat.solve(basic)
+	sat.solve(basic)
+	basSol = sat.solve(basic)
+	basTime = (time.clock() - start) / 3
+	
+	if type(basSol) == type([]):
+		basSol = True
+	else:
+		basSol = False
+	
+	print '	basic   solution:', basSol, '	clauses:', len(basic), '	construction time:', cTime, '	solution time:', basTime
+	
+def runSatoku(n):
 		
-		satTime = (time.clock() - start) / 3
-		
-		start = time.clock()
-		sat.solve(basic)
-		sat.solve(basic)
-		basSol = sat.solve(basic)
-		basTime = (time.clock() - start) / 3
-		
-		if type(satSol) == type([]):
-			satSol = True
-		else:
-			satSol = False
-			
-		if type(basSol) == type([]):
-			basSol = True
-		else:
-			basSol = False
-
-		print ''
-		print '	satoku solution exists:	', satSol, '	time:', satTime
-		print '	basic  solution exists:	', basSol, '	tiem:', basTime
-		
-def runBasic():
-
-	for n in range(2, 5):
-		
-		start = time.clock()
-		basic = basicCNF(n)
-		basTime = time.clock() - start
-		print '	n: ', n, '	#bits basic:  ', countBits(n**2)
-		print '	basic  CNF clauses:', len(basic), '	time:', basTime
-		
-		start = time.clock()
-		sat.solve(basic)
-		sat.solve(basic)
-		sat.solve(basic)
-		basTime = (time.clock() - start) / 3
-		
-		print ''
-		print '	basic  solution time:	', basTime
-		print ''
+	start = time.clock()
+	cnf = satokuCNF(n)
+	cTime = time.clock() - start
+	
+	start = time.clock()
+	sat.solve(cnf)
+	sat.solve(cnf)
+	sol = sat.solve(cnf)
+	basTime = (time.clock() - start) / 3
+	
+	if type(sol) == type([]):
+		sol = True
+	else:
+		sol = False
+	
+	print '	satoku  solution:', sol, '	clauses:', len(cnf), '	construction time:', cTime, '	solution time:', basTime
+	
 		
 def genPair(base):
 	''' Creates a positive / negative pair for the base varialbe
@@ -256,7 +251,22 @@ def genAllPairs(nBits, base, startBit = 0):
 		pairs = p1 + p2
 	
 	return pairs
+
+def shiftPrototype(prototype):
+	shift = 0
 	
+	shiftP = []
+	for i, e in enumerate(prototype):
+		if shift < len(e):
+			shift = len(e)
+
+	for i, e in enumerate(prototype):
+		shiftP.append([])
+		for j, f in enumerate(e):
+			shiftP[i].append( f[:-1] + str( int(f[-1]) + shift ) )
+			
+	return shiftP
+
 def genNullValuePrototypeCNF(n):
 	''' Generates the null value prototypes
 		These are the values v > n that occur when encoding n to binary
@@ -292,7 +302,8 @@ def hasZero(cnf):
 	return False
 				
 if __name__ == '__main__':
-	compare()
+	compare(5)
+	
 	
 	
 	
