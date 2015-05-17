@@ -6,7 +6,7 @@ import math
 from copy import deepcopy
 
 id = {} # used to convert from string to int
-lid = [] # used to convert from int to string
+lid = [''] # used to convert from int to string
 
 def conv(string):
 	''' Creates the forward conversion between a string and an integer
@@ -17,7 +17,7 @@ def conv(string):
 		return id[string]
 	except KeyError:
 		id[string] = len(id) + 1
-		lid.append(id[string])
+		lid.append(string)
 		return id[string]
 
 def genNotEqualBitPair(baseA, baseB, bit):
@@ -112,7 +112,7 @@ def satokuCNF(n):
 	'''
 	cnf = []
 	n_sqr = n**2
-	nBits = countBits(n_sqr, True)
+	nBits = 2*countBits(n)
 	
 	if (nBits & 1) == 1:
 		nBits += 1
@@ -156,8 +156,7 @@ def basicCNF(n):
 	#generate row constraints
 	for row in range(n_sqr):
 		cnf = cnf + genSectorConstraints(cells[row, :], nBits)
-		
-	
+
 	#generate column constraints
 	for col in range(n_sqr):
 		cnf = cnf + genSectorConstraints(cells[:, col], nBits)
@@ -300,10 +299,59 @@ def hasZero(cnf):
 			if v == 0:
 				return True
 	return False
-				
-if __name__ == '__main__':
-	compare(5)
 	
+def intToHandle(values):
+	''' inverse of the conv() function
+	'''
+	handle  =[]
+	for i, e in enumerate(values):
+		if e < 0:
+			handle.append( lid[ abs(e)] + '-')
+		else:
+			handle.append( lid[e] )
+	return handle
+
+def clauseToInt(clause):
+	''' converts a cnf clause to an integer
+	'''
+	i = 0
+	for bit in reversed(clause):
+		i <<= 1
+		if bit[-1] != '-':
+			i += 1
+	return i
+
+def satToSud(solution, n):
+	''' converts the sat solution to a sudoku solution
+	'''
+	n_sqr = n**2
+	nBits = countBits(n_sqr)
+	
+	handles = intToHandle(solution)
+	if len(handles) % nBits != 0:
+		print 'Invalid Solution: Bit count is wrong'
+		return None
+		
+	sud = []
+	si = -1
+	handles.sort()
+	for i in range(0, len(handles), nBits):
+		if (i) % (nBits*n_sqr) == 0:
+			sud.append([])
+			si += 1
+		sud[si].append(clauseToInt(handles[i:i+nBits]))
+	
+	return sud
+	
+	
+if __name__ == '__main__':
+	n=3
+	cnf = satokuCNF(n)
+	sol = sat.solve(cnf)
+	sud = satToSud(sol, n)
+	
+	for row in sud:
+		print row
 	
 	
 	
