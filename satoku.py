@@ -110,6 +110,9 @@ def countBits(n, even=False):
 def satokuCNF(n):
 	''' generate the satoku cnf encoding
 	'''
+	
+	id = {}
+	lid = ['']
 	cnf = []
 	n_sqr = n**2
 	nBits = 2*countBits(n)
@@ -118,8 +121,8 @@ def satokuCNF(n):
 		nBits += 1
 	
 	#create handles
-	cells = np.array( [ ['V' + str(val) + 'R' + str(row) for val in range(n_sqr) ] for row in range(n_sqr)] )
-	
+	cells = np.array( [ ['V' + str(val).zfill(3) + 'R' + str(row).zfill(3) for val in range(n_sqr) ] for row in range(n_sqr)] )
+
 	#generate row constraints
 	for row in range(n_sqr):
 		cnf = cnf + genSectorConstraints(cells[row, :], nBits)
@@ -146,12 +149,15 @@ def satokuCNF(n):
 def basicCNF(n):
 	''' generate the standard sudoku cnf encoding
 	'''
+	
+	id = {}
+	lid = ['']
 	cnf = []
 	n_sqr = n**2
 	nBits = countBits(n_sqr)
 	
 	#create handles
-	cells = np.array( [ [ 'R' + str(row) + 'C' + str(col) for col in range(n_sqr)] for row in range(n_sqr) ] )
+	cells = np.array( [ [ 'R' + str(row).zfill(3) + 'C' + str(col).zfill(3) for col in range(n_sqr)] for row in range(n_sqr) ] )
 	
 	#generate row constraints
 	for row in range(n_sqr):
@@ -185,47 +191,55 @@ def compare(stop):
 
 	for n in range(2, stop+1):
 		print 'n:', n
-		runBasic(n)
 		runSatoku(n)
+		runBasic(n)
 		print ''
 		
 def runBasic(n):
-		
+	global id
+	global lid
+	id = {}
+	lid = [''] 
 	start = time.clock()
 	basic = basicCNF(n)
-	cTime = time.clock() - start
+	cTime = (time.clock() - start) 
 	
 	start = time.clock()
-	sat.solve(basic)
-	sat.solve(basic)
 	basSol = sat.solve(basic)
-	basTime = (time.clock() - start) / 3
+	basTime = (time.clock() - start)
 	
 	if type(basSol) == type([]):
-		basSol = True
+		basSolExists = True
 	else:
-		basSol = False
+		basSolExists = False
 	
-	print '	basic   solution:', basSol, '	clauses:', len(basic), '	construction time:', cTime, '	solution time:', basTime
-	
-def runSatoku(n):
+	print '	basic   solution:', basSolExists, '	clauses:', len(basic), '	construction time:', cTime, '	solution time:', basTime
+	if(basSolExists):
+		sud = satToSud(basSol, n)
+		#printSolution(sud)
 		
+def runSatoku(n):
+	global id
+	global lid
+	id = {}
+	lid = ['']
 	start = time.clock()
 	cnf = satokuCNF(n)
-	cTime = time.clock() - start
+	cTime = (time.clock() - start)
 	
 	start = time.clock()
-	sat.solve(cnf)
-	sat.solve(cnf)
 	sol = sat.solve(cnf)
-	basTime = (time.clock() - start) / 3
+	basTime = (time.clock() - start)
 	
 	if type(sol) == type([]):
-		sol = True
+		solExists = True
 	else:
-		sol = False
+		solExists = False
 	
-	print '	satoku  solution:', sol, '	clauses:', len(cnf), '	construction time:', cTime, '	solution time:', basTime
+	print '	satoku  solution:', solExists, '	clauses:', len(cnf), '	construction time:', cTime, '	solution time:', basTime
+	if(solExists):
+		sud = satToSatoku(sol, n)
+		#printSolution(sud)
 	
 		
 def genPair(base):
@@ -252,6 +266,8 @@ def genAllPairs(nBits, base, startBit = 0):
 	return pairs
 
 def shiftPrototype(prototype):
+	''' Shifts the Prototype up n bits, where n is the number of bits used in the prototype
+	'''
 	shift = 0
 	
 	shiftP = []
@@ -343,16 +359,34 @@ def satToSud(solution, n):
 	
 	return sud
 	
+def vector2Int(v, n):
+	nBits = countBits(n)
+	lower = v & (2**nBits - 1)
+	upper = v >> nBits
+	return n*upper + lower
 	
-if __name__ == '__main__':
-	n=3
-	cnf = satokuCNF(n)
-	sol = sat.solve(cnf)
-	sud = satToSud(sol, n)
 	
-	for row in sud:
+def satToSatoku(solution, n):
+	''' converts a sat solution from satoku to a Sudoku solution
+	'''
+	sud_p = satToSud(solution, n)
+	sud = deepcopy(sud_p)
+	
+	for r, row in enumerate(sud_p):
+		for v, val in enumerate(row):
+			c = vector2Int(sud_p[r][v], n)
+			sud[r][c] = v
+			
+	return sud
+	
+def printSolution(solution):
+	''' prints the solution the the screen
+	'''
+	for row in solution:
 		print row
-	
+
+if __name__ == '__main__':
+	compare(4)
 	
 	
 	
