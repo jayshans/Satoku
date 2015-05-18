@@ -2,11 +2,22 @@ import numpy as np
 import pycosat as sat
 import time
 import math
+import pycosatSudoku as osud
 
 from copy import deepcopy
 
 id = {} # used to convert from string to int
 lid = [''] # used to convert from int to string
+
+blank = [[0, 0, 0, 0, 0, 0, 0, 0, 0],
+		[0, 0, 0, 0, 0, 0, 0, 0, 0],
+		[0, 0, 0, 0, 0, 0, 0, 0, 0],
+		[0, 0, 0, 0, 0, 0, 0, 0, 0],
+		[0, 0, 0, 0, 0, 0, 0, 0, 0],
+		[0, 0, 0, 0, 0, 0, 0, 0, 0],
+		[0, 0, 0, 0, 0, 0, 0, 0, 0],
+		[0, 0, 0, 0, 0, 0, 0, 0, 0],
+		[0, 0, 0, 0, 0, 0, 0, 0, 0]]
 
 def conv(string):
 	''' Creates the forward conversion between a string and an integer
@@ -386,7 +397,10 @@ def printSolution(solution):
 		print row
 
 if __name__ == '__main__':
-	compare(4)
+	compare(3)
+	start = time.clock()
+	osud.solve(blank)
+	print time.clock() - start
 	
 	
 	
